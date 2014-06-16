@@ -1565,14 +1565,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	tty_port_tty_set(port, tty);
 
 	/*
-	 * If the port is in the middle of closing, bail out now.
-	 */
-	if (tty_hung_up_p(filp)) {
-		retval = -EAGAIN;
-		goto err_dec_count;
-	}
-
-	/*
 	 * Make sure the device is in D0 state.
 	 */
 	if (port->count == 1)
