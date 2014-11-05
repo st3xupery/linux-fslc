@@ -770,6 +770,8 @@ static void tty_ldisc_kill(struct tty_struct *tty)
  *	Called during the final close of a tty or a pty pair in order to shut
  *	down the line discpline layer. On exit, each ldisc assigned is N_TTY and
  *	each ldisc has not been opened.
+ *
+ *	Holding ldisc_sem write lock serializes tty->ldisc changes.
  */
 
 void tty_ldisc_release(struct tty_struct *tty)
@@ -784,13 +786,9 @@ void tty_ldisc_release(struct tty_struct *tty)
 	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
 
 	tty_ldisc_lock_pair(tty, o_tty);
-	tty_lock_pair(tty, o_tty);
-
 	tty_ldisc_kill(tty);
 	if (o_tty)
 		tty_ldisc_kill(o_tty);
-
-	tty_unlock_pair(tty, o_tty);
 	tty_ldisc_unlock_pair(tty, o_tty);
 
 	/* And the memory resources remaining (buffers, termios) will be
