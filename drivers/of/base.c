@@ -550,8 +550,9 @@ EXPORT_SYMBOL(of_get_next_parent);
  *	@node:	parent node
  *	@prev:	previous child of the parent node, or NULL to get first
  *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
+ *	Returns a node pointer with refcount incremented, use of_node_put() on
+ *	it when done. Returns NULL when prev is the last child. Decrements the
+ *	refcount of prev.
  */
 struct device_node *of_get_next_child(const struct device_node *node,
 	struct device_node *prev)
