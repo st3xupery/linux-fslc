@@ -213,13 +213,14 @@ static int ath_recv(struct hci_uart *hu, void *data, int count)
 }
 
 static struct hci_uart_proto athp = {
-	.id = HCI_UART_ATH3K,
-	.open = ath_open,
-	.close = ath_close,
-	.recv = ath_recv,
-	.enqueue = ath_enqueue,
-	.dequeue = ath_dequeue,
-	.flush = ath_flush,
+	.id             = HCI_UART_ATH3K,
+	.name           = "ATH3K",
+	.open           = ath_open,
+	.close          = ath_close,
+	.recv           = ath_recv,
+	.enqueue        = ath_enqueue,
+	.dequeue        = ath_dequeue,
+	.flush          = ath_flush,
 };
 
 int __init ath_init(void)
