@@ -55,12 +55,15 @@ struct serdev_device;
 struct hci_uart_proto {
 	unsigned int id;
 	const char *name;
+	unsigned int init_speed;
+	unsigned int oper_speed;
 	int (*open)(struct hci_uart *hu);
 	int (*close)(struct hci_uart *hu);
 	int (*flush)(struct hci_uart *hu);
 	int (*recv)(struct hci_uart *hu, void *data, int len);
 	int (*enqueue)(struct hci_uart *hu, struct sk_buff *skb);
 	int (*setup)(struct hci_uart *hu);
+	int (*set_baudrate)(struct hci_uart *hu, unsigned int speed);
 	struct sk_buff *(*dequeue)(struct hci_uart *hu);
 };
 
@@ -97,6 +100,7 @@ int hci_uart_register_device(struct hci_uart *hu, const struct hci_uart_proto *p
 
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
+void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed);
 
 #ifdef CONFIG_BT_HCIUART_H4
 int h4_init(void);
