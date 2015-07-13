@@ -414,7 +414,6 @@ receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)
 		if (count && disc->ops->receive_buf)
 			disc->ops->receive_buf(tty, p, f, count);
 	}
-	head->read += count;
 	return count;
 }
 
@@ -475,6 +474,7 @@ static void flush_to_ldisc(struct work_struct *work)
 		count = receive_buf(tty, head, count);
 		if (!count)
 			break;
+		head->read += count;
 	}
 
 	mutex_unlock(&buf->lock);
