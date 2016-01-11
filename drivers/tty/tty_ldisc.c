@@ -265,7 +265,8 @@ const struct file_operations tty_ldiscs_proc_fops = {
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
 	ldsem_down_read(&tty->ldisc_sem, MAX_SCHEDULE_TIMEOUT);
-	WARN_ON(!tty->ldisc);
+	if (!tty->ldisc)
+		ldsem_up_read(&tty->ldisc_sem);
 	return tty->ldisc;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
@@ -529,6 +530,10 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		return retval;
 	}
 
+	if (!tty->ldisc) {
+		return -EIO;
+	}
+
 	/*
 	 *	Check the no-op case
 	 */
@@ -657,7 +662,7 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
 	int err = 0;
 
-	tty_ldisc_debug(tty, "closing ldisc: %p\n", tty->ldisc);
+	tty_ldisc_debug(tty, "hangup ldisc: %p\n", tty->ldisc);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
@@ -744,6 +749,8 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 static void tty_ldisc_kill(struct tty_struct *tty)
 {
+	if (!tty->ldisc)
+		return;
 	/*
 	 * Now kill off the ldisc
 	 */
