@@ -443,7 +443,7 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *	tty_port_block_til_ready	-	Waiting logic for tty open
  *	@port: the tty port being opened
  *	@tty: the tty device being bound
- *	@filp: the file pointer of the opener
+ *	@filp: the file pointer of the opener or NULL
  *
  *	Implement the core POSIX/SuS tty behaviour when opening a tty device.
  *	Handles:
@@ -482,7 +482,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
-	if (filp->f_flags & O_NONBLOCK) {
+	if (filp == NULL || (filp->f_flags & O_NONBLOCK)) {
 		/* Indicate we are open */
 		if (tty->termios.c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
