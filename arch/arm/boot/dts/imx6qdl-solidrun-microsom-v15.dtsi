@@ -80,25 +80,9 @@
 
 	usdhc1_pwrseq: usdhc1_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>,
-			      <&gpio6 0 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
 		clocks = <&clk_sdio>;
 		clock-names = "ext_clock";
-	};
-
-	kim {
-		compatible = "kim";
-		nshutdown_gpio = <160>;  /* GPIO3_IO16 */
-		dev_name = "/dev/ttymxc3";
-		flow_cntrl = <1>;
-		baud_rate = <3000000>;
-		status = "okay";
-	};
- 
- 
-	btwilink {
-		compatible = "btwilink";
-		status = "okay";
 	};
 };
 
@@ -184,12 +168,18 @@
 	status = "okay";
 };
 
-/* UART4 - Connected to optional BRCM Wifi/BT/FM */
+/* UART4 - Connected to optional TI-WILINK8*/
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_microsom_uart4>;
+	pinctrl-0 = <&pinctrl_microsom_uart4 &pinctrl_microsom_tiwl_bt>;
 	fsl,uart-has-rtscts;
+	current-speed = <3000000>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "ti,wl1835-st";
+		enable-gpios = <&gpio6 0 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 /* USDHC1 - Connected to optional BRCM Wifi/BT/FM */
