@@ -91,7 +91,7 @@ static void hci_uart_write_work(struct work_struct *work)
 				break;
 			}
 
-			hci_uart_tx_complete(hu, hci_skb_pkt_type(skb));
+			hci_uart_tx_complete(hu, bt_cb(skb)->pkt_type);
 			kfree_skb(skb);
 		}
 	} while(test_bit(HCI_UART_TX_WAKEUP, &hu->tx_state));
@@ -153,7 +153,7 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 
-	BT_DBG("%s: type %d len %d", hdev->name, hci_skb_pkt_type(skb),
+	BT_DBG("%s: type %d len %d", hdev->name, bt_cb(skb)->pkt_type,
 	       skb->len);
 
 	hu->proto->enqueue(hu, skb);
@@ -166,8 +166,6 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 static int hci_uart_setup(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
-	struct hci_rp_read_local_version *ver;
-	struct sk_buff *skb;
 	unsigned int speed;
 	int err;
 
@@ -201,23 +199,6 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	if (hu->proto->setup)
 		return hu->proto->setup(hu);
 
-	if (!test_bit(HCI_UART_VND_DETECT, &hu->hdev_flags))
-		return 0;
-
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading local version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
-		return 0;
-	}
-
-	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: Event length mismatch for version information",
-		       hdev->name);
-	}
-
-	kfree_skb(skb);
 	return 0;
 }
 
@@ -311,13 +292,6 @@ int hci_uart_register_device(struct hci_uart *hu,
 
 	INIT_WORK(&hu->write_work, hci_uart_write_work);
 
-	/* Only when vendor specific setup callback is provided, consider
-	 * the manufacturer information valid. This avoids filling in the
-	 * value for Ericsson when nothing is specified.
-	 */
-	if (hu->proto->setup)
-		hdev->manufacturer = hu->proto->manufacturer;
-
 	hdev->open  = hci_uart_open;
 	hdev->close = hci_uart_close;
 	hdev->flush = hci_uart_flush;
@@ -328,16 +302,13 @@ int hci_uart_register_device(struct hci_uart *hu,
 	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
 
-	if (test_bit(HCI_UART_EXT_CONFIG, &hu->hdev_flags))
-		set_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks);
-
 	if (!test_bit(HCI_UART_RESET_ON_INIT, &hu->hdev_flags))
 		set_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
 
 	if (test_bit(HCI_UART_CREATE_AMP, &hu->hdev_flags))
 		hdev->dev_type = HCI_AMP;
 	else
-		hdev->dev_type = HCI_PRIMARY;
+		hdev->dev_type = HCI_BREDR;
 
 	if (test_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags))
 		return 0;

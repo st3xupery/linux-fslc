@@ -535,8 +535,8 @@ static int read_local_version(struct hci_dev *hdev)
 
 	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		bt_dev_err(hdev, "Reading TI version information failed (%ld)",
-			   PTR_ERR(skb));
+		BT_ERR("%s: Reading TI version information failed (%ld)",
+			   hdev->name, PTR_ERR(skb));
 		err = PTR_ERR(skb);
 		goto out;
 	}
@@ -554,7 +554,7 @@ static int read_local_version(struct hci_dev *hdev)
 	version = le16_to_cpu(ver->lmp_subver);
 
 out:
-	if (err) bt_dev_err(hdev, "Failed to read TI version info: %d", err);
+	if (err) BT_ERR("%s: Failed to read TI version info: %d", hdev->name, err);
 	kfree_skb(skb);
 	return err ? err : version;
 }
@@ -590,8 +590,8 @@ static int download_firmware(struct ll_device *lldev)
 
 	err = request_firmware(&fw, bts_scr_name, &lldev->serdev->dev);
 	if (err || !fw->data || !fw->size) {
-		bt_dev_err(lldev->hu.hdev, "request_firmware failed(errno %d) for %s",
-			   err, bts_scr_name);
+		BT_ERR("%s: request_firmware failed(errno %d) for %s",
+			   lldev->hu.hdev->name, err, bts_scr_name);
 		return -EINVAL;
 	}
 	ptr = (void *)fw->data;
@@ -603,7 +603,8 @@ static int download_firmware(struct ll_device *lldev)
 	len -= sizeof(struct bts_header);
 
 	while (len > 0 && ptr) {
-		bt_dev_dbg(lldev->hu.hdev, " action size %d, type %d ",
+		BT_DBG("%s: action size %d, type %d ",
+			   lldev->hu.hdev->name,
 			   ((struct bts_action *)ptr)->size,
 			   ((struct bts_action *)ptr)->type);
 
@@ -611,30 +612,30 @@ static int download_firmware(struct ll_device *lldev)
 
 		switch (((struct bts_action *)ptr)->type) {
 		case ACTION_SEND_COMMAND:       /* action send */
-			bt_dev_dbg(lldev->hu.hdev, "S");
+			BT_DBG("%s: S", lldev->hu.hdev->name);
 			cmd = (struct hci_command *)action_ptr;
 			if (cmd->opcode == 0xff36) {
 				/* ignore remote change
 				 * baud rate HCI VS command */
-				bt_dev_warn(lldev->hu.hdev, "change remote baud rate command in firmware");
+				BT_INFO("%s: change remote baud rate command in firmware", lldev->hu.hdev->name);
 				break;
 			}
 			if (cmd->prefix != 1)
-				bt_dev_dbg(lldev->hu.hdev, "command type %d\n", cmd->prefix);
+				BT_DBG("%s: command type %d\n", lldev->hu.hdev->name, cmd->prefix);
 
 			skb = __hci_cmd_sync(lldev->hu.hdev, cmd->opcode, cmd->plen, &cmd->speed, HCI_INIT_TIMEOUT);
 			if (IS_ERR(skb)) {
-				bt_dev_err(lldev->hu.hdev, "send command failed\n");
+				BT_ERR("%s: send command failed\n", lldev->hu.hdev->name);
 				goto out_rel_fw;
 			}
 			kfree_skb(skb);
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
 			/* no need to wait as command was synchronous */
-			bt_dev_dbg(lldev->hu.hdev, "W");
+			BT_DBG("%s: W", lldev->hu.hdev->name);
 			break;
 		case ACTION_DELAY:      /* sleep */
-			bt_dev_info(lldev->hu.hdev, "sleep command in scr");
+			BT_INFO("%s: sleep command in scr", lldev->hu.hdev->name);
 			mdelay(((struct bts_action_delay *)action_ptr)->msec);
 			break;
 		}
@@ -676,7 +677,7 @@ static int ll_setup(struct hci_uart *hu)
 			break;
 
 		/* Toggle BT_EN and retry */
-		bt_dev_err(hu->hdev, "download firmware failed, retrying...");
+		BT_ERR("%s: download firmware failed, retrying...", hu->hdev->name);
 	} while (retry--);
 
 	if (err)
@@ -701,13 +702,15 @@ static int ll_setup(struct hci_uart *hu)
 	return 0;
 }
 
-static const struct hci_uart_proto llp;
+static struct hci_uart_proto llp;
 
 static int hci_ti_probe(struct serdev_device *serdev)
 {
 	struct hci_uart *hu;
 	struct ll_device *lldev;
 	u32 max_speed = 3000000;
+	struct gpio_desc *gpio;
+	int ret;
 
 	lldev = devm_kzalloc(&serdev->dev, sizeof(struct ll_device), GFP_KERNEL);
 	if (!lldev)
@@ -717,9 +720,13 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	serdev_device_set_drvdata(serdev, lldev);
 	lldev->serdev = hu->serdev = serdev;
 
-	lldev->enable_gpio = devm_gpiod_get_optional(&serdev->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(lldev->enable_gpio))
-		return PTR_ERR(lldev->enable_gpio);
+	gpio = devm_gpiod_get(&serdev->dev, "enable");
+	if (!IS_ERR(gpio)) {
+		ret = gpiod_direction_output(gpio, 0);
+		if (ret)
+			return ret;	
+		lldev->enable_gpio = gpio;
+	}
 
 	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
