@@ -360,6 +360,9 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 	int err;
 	bool found = false;
 
+	if (!ctrl->dev.of_node)
+		return -ENODEV;
+
 	for_each_available_child_of_node(ctrl->dev.of_node, node) {
 		if (!of_get_property(node, "compatible", NULL))
 			continue;
