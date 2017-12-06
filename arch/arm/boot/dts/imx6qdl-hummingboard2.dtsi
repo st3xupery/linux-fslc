@@ -234,6 +234,12 @@
 	fsl,cpu_pdnscr_iso = <0x1>;
 };
 
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard_flexcan1>;
+	status = "disabled";
+};
+
 &hdmi_core {
 	ipu_id = <0>;
 	disp_id = <0>;
@@ -418,6 +424,13 @@
 
 				/* MikroBUS GPIO pin number 10 */
 				MX6QDL_PAD_EIM_LBA__GPIO2_IO27 0x400130b1
+			>;
+		};
+
+		pinctrl_hummingboard_flexcan1: hummingboard-flexcan1 {
+		fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__FLEXCAN1_RX 0x1b0b1
+				MX6QDL_PAD_KEY_COL2__FLEXCAN1_TX 0x1b0b1
 			>;
 		};
 
