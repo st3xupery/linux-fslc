@@ -340,7 +340,7 @@ struct fence * viv_fence_create(struct viv_sync_timeline *timeline,
      * Reference fence in signal.
      * Be aware of recursive reference!!
      */
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
     raw_spin_lock_irq(&signal->obj.wait.lock);
 #else
     spin_lock_irq(&signal->obj.wait.lock);
@@ -351,7 +351,7 @@ struct fence * viv_fence_create(struct viv_sync_timeline *timeline,
         signal->fence = NULL;
     }
 
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
     raw_spin_unlock_irq(&signal->obj.wait.lock);
 #else
     spin_unlock_irq(&signal->obj.wait.lock);

@@ -82,6 +82,10 @@
 #include <dma.h>
 #endif
 
+#if gcdRT_KERNEL && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#include <linux/swait.h>
+#endif
+
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
 #include "gc_hal_kernel_allocator.h"
@@ -6037,7 +6041,7 @@ gckOS_WaitSignal(
 
     might_sleep();
 
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
     raw_spin_lock_irq(&signal->obj.wait.lock);
 #else
     spin_lock_irq(&signal->obj.wait.lock);
@@ -6062,15 +6066,21 @@ gckOS_WaitSignal(
             ? MAX_SCHEDULE_TIMEOUT
             : msecs_to_jiffies(Wait);
 
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+        DECLARE_SWAITQUEUE(wait);
+#else
         DEFINE_SWAITER(wait);
+#endif
 #else
         DECLARE_WAITQUEUE(wait, current);
         wait.flags |= WQ_FLAG_EXCLUSIVE;
 #endif
 
-#ifdef gcdRT_KERNEL
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
+#if gcdRT_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0)
+        prepare_to_swait(&signal->obj.wait, &wait, TASK_INTERRUPTIBLE);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
         __prepare_to_swait(&signal->obj.wait, &wait);
 #else
         swait_prepare_locked(&signal->obj.wait, &wait);
@@ -6088,13 +6098,13 @@ gckOS_WaitSignal(
             }
 
             __set_current_state(TASK_INTERRUPTIBLE);
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
             raw_spin_unlock_irq(&signal->obj.wait.lock);
 #else
             spin_unlock_irq(&signal->obj.wait.lock);
 #endif
             timeout = schedule_timeout(timeout);
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
             raw_spin_lock_irq(&signal->obj.wait.lock);
 #else
             spin_lock_irq(&signal->obj.wait.lock);
@@ -6118,8 +6128,10 @@ gckOS_WaitSignal(
             }
         }
 
-#ifdef gcdRT_KERNEL
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4,4,0)
+#if gcdRT_KERNEL
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,9,0)
+        finish_swait(&signal->obj.wait, &wait);
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(4,4,0)
         __finish_swait(&signal->obj.wait, &wait);
 #else
         swait_finish_locked(&signal->obj.wait, &wait);
@@ -6129,7 +6141,7 @@ gckOS_WaitSignal(
 #endif
     }
 
-#ifdef gcdRT_KERNEL
+#if gcdRT_KERNEL
     raw_spin_unlock_irq(&signal->obj.wait.lock);
 #else
     spin_unlock_irq(&signal->obj.wait.lock);
