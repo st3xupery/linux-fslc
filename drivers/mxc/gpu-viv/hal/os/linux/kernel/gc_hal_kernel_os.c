@@ -408,6 +408,7 @@ _QueryProcessPageTable(
     {
         /* Try user VM area. */
         struct vm_area_struct *vma;
+        spinlock_t *ptl;
         pgd_t *pgd;
         pud_t *pud;
         pmd_t *pmd;
@@ -436,18 +437,21 @@ _QueryProcessPageTable(
         if (pmd_none(*pmd) || pmd_bad(*pmd))
             return gcvSTATUS_NOT_FOUND;
 
-        pte = pte_offset_map(pmd, logical);
+        pte = pte_offset_map_lock(current->mm, pmd, logical, &ptl);
         if (!pte)
         {
+            spin_unlock(ptl);
             return gcvSTATUS_NOT_FOUND;
         }
 
         if (!pte_present(*pte))
         {
+            pte_unmap_unlock(pte, ptl);
             return gcvSTATUS_NOT_FOUND;
         }
 
         *Address = (pte_pfn(*pte) << PAGE_SHIFT) | offset;
+        pte_unmap_unlock(pte, ptl);
 
         return gcvSTATUS_OK;
     }
